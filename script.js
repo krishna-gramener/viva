@@ -1,7 +1,17 @@
+import { openaiConfig } from "https://cdn.jsdelivr.net/npm/bootstrap-llm-provider@1.2";
+
 const statusElement = document.getElementById('status');
 const micButtons = document.querySelectorAll('.mic-btn');
 const transcriptionServiceSelect = document.getElementById('transcriptionService');
 
+const { baseUrl, apiKey } = await openaiConfig({
+  baseUrls: [
+    { url: "https://api.openai.com/v1", name: "OpenAI" },
+    { url: "https://openrouter.com/api/v1", name: "OpenRouter" },
+    { url: "https://llmfoundry.straive.com/openai/v1", name: "LLMFoundry" },
+  ],
+  // baseUrls overrides defaultBaseUrls
+});
 let mediaRecorder;
 let audioChunks = [];
 let audioURL = null;
@@ -180,11 +190,11 @@ async function transcribeWithOpenAI(audioBlob) {
   formData.append('model', 'gpt-4o-transcribe');
   
   const response = await fetch(
-    'https://llmfoundry.straive.com/openai/v1/audio/transcriptions',
+    `${baseUrl}/audio/transcriptions`,
     {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}:viva`
+        'Authorization': `Bearer ${apiKey}:viva`
       },
       credentials: "include",
       body: formData
