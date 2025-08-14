@@ -38,6 +38,17 @@
                 <div class="text-center mb-4">
                     <h1 class="mb-3">VoiceViva</h1>
                     <p class="lead mb-3">Your AI-powered interview companion that turns speech into perfect responses</p>
+                    <div class="row justify-content-center mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <label class="input-group-text" for="transcriptionService">Transcription Service</label>
+                                <select class="form-select" id="transcriptionService">
+                                    <option value="gemini" selected>Gemini</option>
+                                    <option value="openai">OpenAI Whisper</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <div id="status" class="text-muted fst-italic">Ready to record</div>
                 </div>
                 

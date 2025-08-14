@@ -1,5 +1,7 @@
 const statusElement = document.getElementById('status');
 const micButtons = document.querySelectorAll('.mic-btn');
+const transcriptionServiceSelect = document.getElementById('transcriptionService');
+
 let mediaRecorder;
 let audioChunks = [];
 let audioURL = null;
@@ -30,7 +32,7 @@ async function init() {
     const data = await response.json();
     token = data.token;
   } catch (error) {
-    console.error('Token initialization Nerror:', error);
+    console.error('Token initialization error:', error);
   }
 }
 
@@ -89,8 +91,8 @@ micButtons.forEach(button => {
           statusElement.textContent = 'Transcribing audio...';
           spinnerElement.style.display = 'block';
           
-          // Send to Gemini API
-          const transcriptText = await transcribeAudio(base64Data);
+          // Send to selected transcription service
+          const transcriptText = await transcribeAudio(base64Data, audioBlob);
           transcriptElement.textContent = transcriptText;
           statusElement.textContent = 'Ready to record';
           
@@ -127,7 +129,20 @@ async function blobToBase64(blob) {
   });
 }
 
-async function transcribeAudio(base64Data) {
+async function transcribeAudio(audioData, audioBlob) {
+  // Get selected transcription service
+  const service = transcriptionServiceSelect.value;
+  
+  if (service === 'gemini') {
+    return await transcribeWithGemini(audioData);
+  } else if (service === 'openai') {
+    return await transcribeWithOpenAI(audioBlob);
+  } else {
+    throw new Error('Invalid transcription service selected');
+  }
+}
+
+async function transcribeWithGemini(base64Data) {
   const response = await fetch(
     'https://llmfoundry.straive.com/gemini/v1beta/models/gemini-2.5-flash:generateContent',
     {
@@ -151,10 +166,37 @@ async function transcribeAudio(base64Data) {
   
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Transcription failed: ${response.status} - ${errorText}`);
+    throw new Error(`Gemini transcription failed: ${response.status} - ${errorText}`);
   }
   
   const result = await response.json();
   return result?.candidates?.[0]?.content?.parts?.[0]?.text || 'No transcript found';
+}
+
+async function transcribeWithOpenAI(audioBlob) {
+  // Create form data for OpenAI API
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'audio.webm');
+  formData.append('model', 'gpt-4o-transcribe');
+  
+  const response = await fetch(
+    'https://llmfoundry.straive.com/openai/v1/audio/transcriptions',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}:viva`
+      },
+      credentials: "include",
+      body: formData
+    }
+  );
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI transcription failed: ${response.status} - ${errorText}`);
+  }
+  
+  const result = await response.json();
+  return result.text || 'No transcript found';
 }
 
