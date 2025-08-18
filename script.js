@@ -1,19 +1,23 @@
 import { openaiConfig } from "https://cdn.jsdelivr.net/npm/bootstrap-llm-provider@1.2";
+import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@1";
 
 const statusElement = document.getElementById('status');
-const micButtons = document.querySelectorAll('.mic-btn');
 const transcriptionServiceSelect = document.getElementById('transcriptionService');
 const microphoneSelect = document.getElementById('microphoneSelect');
 const refreshMicsButton = document.getElementById('refreshMics');
+const questionsContainer = document.getElementById('questions-container');
+const evaluateBtn = document.getElementById('evaluateBtn');
+const evaluationStatus = document.getElementById('evaluation-status');
+const resultsContainer = document.getElementById('results-container');
+const resultsContent = document.getElementById('results-content');
 
-const { baseUrl, apiKey } = await openaiConfig({
-  baseUrls: [
-    { url: "https://api.openai.com/v1", name: "OpenAI" },
-    { url: "https://openrouter.com/api/v1", name: "OpenRouter" },
-    { url: "https://llmfoundry.straive.com/openai/v1", name: "LLMFoundry" },
-  ],
-  // baseUrls overrides defaultBaseUrls
+// Store loaded questions for later use in evaluation
+let loadedQuestions = [];
+
+const { baseUrl, apiKey} = await openaiConfig({
+  defaultBaseUrls: ["https://api.openai.com/v1", "https://openrouter.com/api/v1","https://llmfoundry.straive.com/openai/v1"]
 });
+
 let mediaRecorder;
 let audioChunks = [];
 let audioURL = null;
@@ -40,15 +44,95 @@ function createAudioPlayer(questionId) {
 }
 async function init() {
   try {
+    // Get token for API access
     const response = await fetch("https://llmfoundry.straive.com/token", { credentials: "include" });
     const data = await response.json();
     token = data.token;
     
     // Initialize microphone list
     await populateMicrophoneList();
+    
+    // Load questions from JSON file
+    await loadQuestions();
   } catch (error) {
-    console.error('Token initialization error:', error);
+    console.error('Initialization error:', error);
+    document.getElementById('questions-container').innerHTML = `
+      <div class="alert alert-danger">
+        Error loading questions: ${error.message}
+      </div>
+    `;
   }
+}
+
+// Function to populate questions from JSON data
+function populateQuestions(questionsData) {
+  // Populate questions
+  const questionsContainer = document.getElementById('questions-container');
+  questionsContainer.innerHTML = ''; // Clear loading indicator
+  
+  questionsData.forEach((questionData, index) => {
+    const questionId = index + 1;
+    const questionElement = createQuestionElement(questionData, questionId);
+    questionsContainer.appendChild(questionElement);
+  });
+  
+  // Attach event listeners to mic buttons
+  attachMicButtonListeners();
+}
+
+// Function to load questions from JSON file
+async function loadQuestions() {
+  try {
+    const response = await fetch('ques.json');
+    if (!response.ok) {
+      throw new Error('Failed to load questions');
+    }
+    
+    loadedQuestions = await response.json();
+    
+    // Populate the JSON editor with the loaded questions
+    const jsonEditor = document.getElementById('jsonEditor');
+    jsonEditor.value = JSON.stringify(loadedQuestions, null, 2);
+    
+    // Populate questions UI
+    populateQuestions(loadedQuestions);
+    
+  } catch (error) {
+    console.error('Error loading questions:', error);
+    questionsContainer.innerHTML = `
+      <div class="alert alert-danger">
+        Error loading questions: ${error.message}
+        <button class="btn btn-sm btn-outline-danger mt-2" onclick="location.reload()">Retry</button>
+      </div>
+    `;
+  }
+}
+
+// Function to create a question element
+function createQuestionElement(questionData, questionId) {
+  const questionContainer = document.createElement('div');
+  questionContainer.className = 'question-container';
+  questionContainer.dataset.questionId = questionId;
+  
+  questionContainer.innerHTML = `
+    <div class="d-flex align-items-center">
+      <label class="form-label flex-grow-1 question-text">Q${questionId}: ${questionData.question}</label>
+      <button type="button" class="btn btn-primary mic-btn" data-question-id="${questionId}">
+        <i class="bi bi-mic-fill"></i>
+      </button>
+    </div>
+    <div class="spinner-container" id="spinner-${questionId}">
+      <div class="d-flex align-items-center">
+        <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <span>Transcribing...</span>
+      </div>
+    </div>
+    <div class="transcript-box bg-light p-2 rounded border" id="transcript-${questionId}" contenteditable="true">Your answer will appear here...</div>
+  `;
+  
+  return questionContainer;
 }
 
 // Function to get and populate available microphones
@@ -121,8 +205,55 @@ init();
 // Add event listener for refresh microphones button
 refreshMicsButton.addEventListener('click', populateMicrophoneList);
 
-// Add event listeners to all mic buttons
-micButtons.forEach(button => {
+// Add event listener for evaluate button
+evaluateBtn.addEventListener('click', evaluateAnswers);
+
+// Add event listener for run JSON button
+const runJsonBtn = document.getElementById('runJsonBtn');
+runJsonBtn.addEventListener('click', function() {
+  try {
+    const jsonEditor = document.getElementById('jsonEditor');
+    const jsonContent = jsonEditor.value.trim();
+    
+    if (!jsonContent) {
+      throw new Error('JSON content is empty');
+    }
+    
+    // Parse the JSON content
+    const questionsData = JSON.parse(jsonContent);
+    
+    // Update the loaded questions
+    loadedQuestions = questionsData;
+    
+    // Populate the questions UI
+    populateQuestions(questionsData);
+    
+    // Show success message
+    statusElement.textContent = 'Questions updated successfully';
+    setTimeout(() => {
+      statusElement.textContent = 'Ready to record';
+    }, 2000);
+    
+    // Close the collapse
+    const bsCollapse = bootstrap.Collapse.getInstance(document.getElementById('jsonEditorCollapse'));
+    if (bsCollapse) {
+      bsCollapse.hide();
+    }
+  } catch (error) {
+    console.error('Error parsing JSON:', error);
+    statusElement.textContent = `Error: ${error.message}`;
+    statusElement.classList.add('text-danger');
+    setTimeout(() => {
+      statusElement.textContent = 'Ready to record';
+      statusElement.classList.remove('text-danger');
+    }, 3000);
+  }
+});
+
+// Function to attach event listeners to mic buttons
+function attachMicButtonListeners() {
+  const micButtons = document.querySelectorAll('.mic-btn');
+  micButtons.forEach(button => {
   button.addEventListener('click', async () => {
     const questionId = button.getAttribute('data-question-id');
     const transcriptElement = document.getElementById(`transcript-${questionId}`);
@@ -211,6 +342,208 @@ micButtons.forEach(button => {
     }
   });
 });
+}
+
+// Function to evaluate answers
+async function evaluateAnswers() {
+  try {
+    // Show evaluation in progress
+    evaluateBtn.disabled = true;
+    evaluationStatus.textContent = 'Evaluating answers...';
+    evaluationStatus.classList.add('text-primary');
+    evaluationStatus.classList.remove('text-danger', 'text-success');
+    
+    // Clear previous results
+    resultsContent.innerHTML = '';
+    resultsContainer.style.display = 'block';
+    
+    // Initialize results table
+    resultsContent.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Score</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+    `;
+    
+    const resultsTbody = document.getElementById('results-tbody');
+    
+    // Check if we have questions loaded
+    if (!loadedQuestions || loadedQuestions.length === 0) {
+      throw new Error('No questions loaded to evaluate');
+    }
+    
+    // Show loading indicator in results table
+    resultsTbody.innerHTML = `
+      <tr>
+        <td colspan="3" class="text-center p-4">
+          <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-3" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Evaluating all answers...</span>
+          </div>
+        </td>
+      </tr>
+    `;
+    
+    // Collect all questions and answers
+    const allQuestionsAndAnswers = [];
+    
+    for (let i = 0; i < loadedQuestions.length; i++) {
+      const questionId = i + 1;
+      const questionData = loadedQuestions[i];
+      const transcriptElement = document.getElementById(`transcript-${questionId}`);
+      
+      // Get answer text
+      const answer = transcriptElement.textContent.trim();
+      const answerText = (!answer || answer === 'Your answer will appear here...') ? 
+        'No answer provided' : answer;
+      
+      allQuestionsAndAnswers.push({
+        questionId,
+        question: questionData.question,
+        answer: answerText,
+        rubric: questionData.rubric
+      });
+    }
+    
+    // Prepare the prompt for LLM with all questions
+    const systemPrompt = `You are an expert evaluator for interview answers. 
+    You will be given multiple questions, the user's answers, and rubrics with scoring criteria.
+    Evaluate each answer according to its rubric items and provide a score and reason.
+    Return your evaluation as a valid JSON array with objects in this format: 
+    [{"name": "criteria_name", "score": score_value, "reason": "explanation"}]
+    The name should include the question number (e.g., "Q1_js_rendering").`;
+    
+    const userMessage = `Questions and Answers:\n\n${allQuestionsAndAnswers.map(qa => 
+      `Question ${qa.questionId}: ${qa.question}\n` +
+      `Answer: ${qa.answer}\n` +
+      `Rubric: ${JSON.stringify(qa.rubric)}\n`
+    ).join('\n')}\n\nPlease evaluate all answers according to their rubrics.`;
+    
+    try {
+      // Call LLM for evaluation
+      const evaluationResponse = await callLLM(systemPrompt, userMessage);
+      let parsedResults;
+      
+      try {
+        // Try to parse the response as JSON
+        parsedResults = JSON.parse(evaluationResponse);
+        
+        // Validate the structure
+        if (!Array.isArray(parsedResults)) {
+          throw new Error('Response is not an array');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse LLM response:', parseError);
+        console.log('Raw response:', evaluationResponse);
+        
+        // Show error in results
+        resultsTbody.innerHTML = `
+          <tr class="table-danger">
+            <td colspan="3" class="text-danger">
+              <p>Failed to parse evaluation results.</p>
+              <pre class="small">${evaluationResponse.substring(0, 500)}...</pre>
+            </td>
+          </tr>
+        `;
+        throw parseError;
+      }
+      
+      // Clear loading indicator
+      resultsTbody.innerHTML = '';
+      
+      // Display results
+      let totalScore = 0;
+      let maxPossibleScore = 0;
+      
+      parsedResults.forEach(result => {
+        const name = result.name;
+        const score = parseInt(result.score) || 0;
+        const reason = result.reason;
+        
+        // Determine color based on score
+        let rowClass = 'table-warning';
+        if (score === 0) rowClass = 'table-danger';
+        else if (score === 2) rowClass = 'table-success';
+        
+        // Add to total score
+        totalScore += score;
+        maxPossibleScore += 2; // Assuming max score is 2 for each criteria
+        
+        // Create row
+        const row = document.createElement('tr');
+        row.className = rowClass;
+        row.innerHTML = `
+          <td>${name}</td>
+          <td class="text-center">${score}</td>
+          <td>${reason}</td>
+        `;
+        
+        resultsTbody.appendChild(row);
+      });
+      
+      // Add summary row
+      const percentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0;
+      let summaryClass = 'table-warning';
+      if (percentage < 40) summaryClass = 'table-danger';
+      else if (percentage >= 70) summaryClass = 'table-success';
+      
+      // Add a separator row
+      const separatorRow = document.createElement('tr');
+      separatorRow.innerHTML = '<td colspan="3" class="border-0" style="height: 10px;"></td>';
+      resultsTbody.appendChild(separatorRow);
+      
+      // Add summary row
+      const summaryRow = document.createElement('tr');
+      summaryRow.className = `${summaryClass} fw-bold`;
+      summaryRow.innerHTML = `
+        <td>Overall Score</td>
+        <td class="text-center">${totalScore}/${maxPossibleScore}</td>
+        <td>${percentage}%</td>
+      `;
+      resultsTbody.appendChild(summaryRow);
+      
+    } catch (error) {
+      console.error('Error during evaluation:', error);
+      
+      if (resultsTbody.querySelector('.spinner-border')) {
+        // If loading indicator is still there, replace it with error
+        resultsTbody.innerHTML = `
+          <tr class="table-danger">
+            <td colspan="3" class="text-danger">Error: ${error.message}</td>
+          </tr>
+        `;
+      }
+    }
+    
+    // All evaluations complete
+    evaluateBtn.disabled = false;
+    evaluationStatus.textContent = 'Evaluation complete!';
+    evaluationStatus.classList.remove('text-primary', 'text-danger');
+    evaluationStatus.classList.add('text-success');
+    
+    // Scroll to results
+    resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    
+  } catch (error) {
+    console.error('Evaluation error:', error);
+    evaluateBtn.disabled = false;
+    evaluationStatus.textContent = `Evaluation failed: ${error.message}`;
+    evaluationStatus.classList.remove('text-primary', 'text-success');
+    evaluationStatus.classList.add('text-danger');
+  }
+}
+
+
 
 // Helper function to convert blob to base64
 async function blobToBase64(blob) {
@@ -293,3 +626,29 @@ async function transcribeWithOpenAI(audioBlob) {
   return result.text || 'No transcript found';
 }
 
+async function callLLM(systemPrompt, userMessage) {
+  try {
+    const response = await fetch("https://llmfoundry.straive.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}:viva`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-5-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+      }),
+    });
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message || "API error occurred");
+    }
+    return data.choices?.[0]?.message?.content || "No response received";
+  } catch (error) {
+    console.error(error);
+    throw new Error(`API call failed: ${error.message}`);
+  }
+}

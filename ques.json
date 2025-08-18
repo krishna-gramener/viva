@@ -1,0 +1,87 @@
+[
+    {
+      "question": "Why is Playwright useful for scraping JavaScript-heavy websites? Provide an example.",
+      "rubric": [
+        {
+          "name": "js_rendering",
+          "check": "Mentions that Playwright executes JavaScript to reveal dynamic content",
+          "scoring": "0 = not mentioned, 1 = partial mention, 2 = correctly explained with clarity"
+        },
+        {
+          "name": "example_usage",
+          "check": "Provides an example such as scraping Quotes to Scrape (JS) or mentions real-world dynamic content",
+          "scoring": "0 = no example, 1 = vague or incorrect, 2 = clear relevant example"
+        }
+      ]
+    },
+    {
+      "question": "In the eMarketer scraping demo, why was caching used, and what benefits does it provide?",
+      "rubric": [
+        {
+          "name": "caching_reason",
+          "check": "Mentions avoiding redundant requests / efficiency",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "benefits",
+          "check": "Mentions reliability, reduced load, or speed improvements",
+          "scoring": "0 = not mentioned, 1 = only one benefit, 2 = multiple correct benefits"
+        }
+      ]
+    },
+    {
+      "question": "How can you scrape IMDb Top 250 movies using only the browser and JavaScript?",
+      "rubric": [
+        {
+          "name": "devtools",
+          "check": "Mentions using Chrome/Edge DevTools",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clear"
+        },
+        {
+          "name": "selectors",
+          "check": "Mentions querySelector/querySelectorAll for elements",
+          "scoring": "0 = not mentioned, 1 = incorrect use, 2 = correct"
+        },
+        {
+          "name": "data_structuring",
+          "check": "Mentions structuring into array/JSON for export",
+          "scoring": "0 = missing, 1 = vague, 2 = correct"
+        }
+      ]
+    },
+    {
+      "question": "Explain how Tabula is used to scrape tables from PDFs.",
+      "rubric": [
+        {
+          "name": "tabula_functionality",
+          "check": "Mentions Tabula extracts tables from PDFs",
+          "scoring": "0 = missing, 1 = vague, 2 = correct"
+        },
+        {
+          "name": "data_output",
+          "check": "Mentions saving results to CSV/structured format",
+          "scoring": "0 = missing, 1 = vague, 2 = correct"
+        }
+      ]
+    },
+    {
+      "question": "List the three main ways to source data before analysis.",
+      "rubric": [
+        {
+          "name": "download",
+          "check": "Mentions downloading datasets from the web or given source",
+          "scoring": "0 = missing, 1 = vague, 2 = correct"
+        },
+        {
+          "name": "query",
+          "check": "Mentions querying databases, APIs, or libraries",
+          "scoring": "0 = missing, 1 = vague, 2 = correct"
+        },
+        {
+          "name": "scraping",
+          "check": "Mentions scraping from web pages, PDFs, Excel, etc.",
+          "scoring": "0 = missing, 1 = vague, 2 = correct"
+        }
+      ]
+    }
+  ]

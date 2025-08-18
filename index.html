@@ -63,69 +63,54 @@
                         </div>
                     </div>
                     <div id="status" class="text-muted fst-italic">Ready to record</div>
+                    
+                    <!-- Collapsible JSON Editor -->
+                    <div class="card mt-3 mb-3">
+                        <div class="card-header">
+                            <button class="btn btn-link text-decoration-none p-0" type="button" data-bs-toggle="collapse" data-bs-target="#jsonEditorCollapse" aria-expanded="false" aria-controls="jsonEditorCollapse">
+                                <i class="bi bi-code-square me-2"></i> Edit Questions JSON
+                            </button>
+                        </div>
+                        <div id="jsonEditorCollapse" class="collapse">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <textarea class="form-control" id="jsonEditor" rows="10" style="font-family: monospace;"></textarea>
+                                </div>
+                                <button type="button" class="btn btn-primary" id="runJsonBtn">
+                                    <i class="bi bi-play-fill me-2"></i> Update Ques & Rubric
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="card">
                     <div class="card-header">Interview Questions</div>
                     <div class="card-body">
                         <form id="questionForm">
-                            <!-- Question 1 -->
-                            <div class="question-container" data-question-id="1">
-                                <div class="d-flex align-items-center">
-                                    <label class="form-label flex-grow-1 question-text">Q1: What is your name?</label>
-                                    <button type="button" class="btn btn-primary mic-btn" data-question-id="1">
-                                        <i class="bi bi-mic-fill"></i>
-                                    </button>
-                                </div>
-                                <div class="spinner-container" id="spinner-1">
-                                    <div class="d-flex align-items-center">
-                                        <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <span>Transcribing...</span>
+                            <!-- Questions will be dynamically loaded from ques.json -->
+                            <div id="questions-container">
+                                <div class="d-flex justify-content-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
                                     </div>
+                                    <span class="ms-2">Loading questions...</span>
                                 </div>
-                                <div class="transcript-box bg-light p-2 rounded border" id="transcript-1" contenteditable="true">Your answer will appear here...</div>
                             </div>
                             
-                            <!-- Question 2 -->
-                            <div class="question-container" data-question-id="2">
-                                <div class="d-flex align-items-center">
-                                    <label class="form-label flex-grow-1 question-text">Q2: What do you do for work?</label>
-                                    <button type="button" class="btn btn-primary mic-btn" data-question-id="2">
-                                        <i class="bi bi-mic-fill"></i>
-                                    </button>
-                                </div>
-                                <div class="spinner-container" id="spinner-2">
-                                    <div class="d-flex align-items-center">
-                                        <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <span>Transcribing...</span>
-                                    </div>
-                                </div>
-                                <div class="transcript-box bg-light p-2 rounded border" id="transcript-2" contenteditable="true">Your answer will appear here...</div>
-                            </div>
-                            
-                            <!-- Question 3 -->
-                            <div class="question-container" data-question-id="3">
-                                <div class="d-flex align-items-center">
-                                    <label class="form-label flex-grow-1 question-text">Q3: Tell us something about yourself.</label>
-                                    <button type="button" class="btn btn-primary mic-btn" data-question-id="3">
-                                        <i class="bi bi-mic-fill"></i>
-                                    </button>
-                                </div>
-                                <div class="spinner-container" id="spinner-3">
-                                    <div class="d-flex align-items-center">
-                                        <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <span>Transcribing...</span>
-                                    </div>
-                                </div>
-                                <div class="transcript-box bg-light p-2 rounded border" id="transcript-3" contenteditable="true">Your answer will appear here...</div>
+                            <div class="mt-4 text-center">
+                                <button type="button" id="evaluateBtn" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle me-2"></i>Evaluate Answers
+                                </button>
+                                <div id="evaluation-status" class="mt-2 text-muted fst-italic"></div>
                             </div>
                         </form>
+                        
+                        <!-- Results section -->
+                        <div id="results-container" class="mt-4" style="display: none;">
+                            <h4 class="mb-3">Evaluation Results</h4>
+                            <div id="results-content"></div>
+                        </div>
                     </div>
                 </div>
             </div>
