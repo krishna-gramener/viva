@@ -1,4 +1,5 @@
 [
+  [
     {
       "question": "Why is Playwright useful for scraping JavaScript-heavy websites? Provide an example.",
       "rubric": [
@@ -84,4 +85,164 @@
         }
       ]
     }
+  ],
+  [
+    {
+      "question": "How does video screen-scraping with LLMs bypass traditional web scraping limitations, and what are some best practices to ensure accurate data extraction?",
+      "rubric": [
+        {
+          "name": "bypass_limitations",
+          "check": "Mentions authentication issues, anti-scraping measures, or legacy systems being bypassed",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "best_practices",
+          "check": "Mentions recording quality, data validation, or error handling as best practices",
+          "scoring": "0 = missing, 1 = vague, 2 = multiple specific best practices mentioned"
+        }
+      ]
+    },
+    {
+      "question": "Why is defining a JSON schema important when using LLMs for text extraction, and how does it improve reliability?",
+      "rubric": [
+        {
+          "name": "json_schema_purpose",
+          "check": "Mentions that schema enforces consistent and structured output",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "reliability",
+          "check": "Mentions avoiding missing keys, hallucinated values, or ensuring structured outputs",
+          "scoring": "0 = missing, 1 = vague, 2 = clearly explained"
+        }
+      ]
+    },
+    {
+      "question": "Compare OpenAI’s TTS-1 API and Google’s Gemini Speech Studio for text-to-speech. What customization options and cost-saving strategies are available in each?",
+      "rubric": [
+        {
+          "name": "openai_features",
+          "check": "Mentions TTS-1 voices, formats, speed, and pricing",
+          "scoring": "0 = missing, 1 = partial, 2 = complete"
+        },
+        {
+          "name": "gemini_features",
+          "check": "Mentions Gemini language support, voices, SSML, and pricing",
+          "scoring": "0 = missing, 1 = partial, 2 = complete"
+        },
+        {
+          "name": "cost_saving",
+          "check": "Mentions batching, caching, or using lower quality/standard models for drafts",
+          "scoring": "0 = missing, 1 = vague, 2 = clearly explained"
+        }
+      ]
+    },
+    {
+      "question": "What role does prompt engineering play in LLM sentiment analysis, and how do zero-shot, one-shot, and multi-shot learning differ in this context?",
+      "rubric": [
+        {
+          "name": "prompt_engineering",
+          "check": "Mentions designing prompts to improve classification accuracy",
+          "scoring": "0 = missing, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "learning_types",
+          "check": "Explains zero-shot (no examples), one-shot (one example), and multi-shot (multiple examples) approaches",
+          "scoring": "0 = missing, 1 = vague/incorrect, 2 = correct and clear"
+        }
+      ]
+    },
+    {
+      "question": "In the context of LLM agents, what are the three core components of an agent, and how do agent architectures like ReAct and Reflexion differ?",
+      "rubric": [
+        {
+          "name": "core_components",
+          "check": "Mentions LLM brain, tools, and memory",
+          "scoring": "0 = missing, 1 = partial, 2 = complete"
+        },
+        {
+          "name": "architectures",
+          "check": "Mentions differences (e.g., ReAct interleaves reasoning with actions, Reflexion adds self-reflection)",
+          "scoring": "0 = missing, 1 = vague, 2 = clearly explained"
+        }
+      ]
+    }
+  ],
+  [
+    {
+      "question": "How can pivot tables in Excel be used to both identify outliers and visualize distributions in a dataset?",
+      "rubric": [
+        {
+          "name": "outliers",
+          "check": "Mentions aggregating data in pivot tables to highlight unusual values",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clear explanation"
+        },
+        {
+          "name": "visualization",
+          "check": "Mentions generating charts from pivot table data to show distributions",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clear explanation"
+        }
+      ]
+    },
+    {
+      "question": "What are some advantages of using shell commands like `awk`, `sed`, and `cut` for data preparation compared to GUI-based tools?",
+      "rubric": [
+        {
+          "name": "efficiency",
+          "check": "Mentions automation, speed, or handling large files",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "flexibility",
+          "check": "Mentions combining commands, scripting, or working without GUI",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clear explanation"
+        }
+      ]
+    },
+    {
+      "question": "How does DuckDB handle messy CSV files differently from traditional parsers, and why is this useful in real-world pipelines?",
+      "rubric": [
+        {
+          "name": "error_handling",
+          "check": "Mentions `ignore_errors=true` or skipping malformed rows",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "usefulness",
+          "check": "Mentions preventing pipeline crashes or salvaging usable data",
+          "scoring": "0 = missing, 1 = vague, 2 = clearly explained"
+        }
+      ]
+    },
+    {
+      "question": "In DuckDB, why is processing data in chunks important, and how does it enable analysis of very large datasets?",
+      "rubric": [
+        {
+          "name": "chunking_reason",
+          "check": "Mentions memory limits or avoiding system crashes",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clearly explained"
+        },
+        {
+          "name": "benefit",
+          "check": "Mentions analyzing terabyte-scale datasets or making big data analysis accessible",
+          "scoring": "0 = not mentioned, 1 = vague, 2 = clear explanation"
+        }
+      ]
+    },
+    {
+      "question": "Give an example of how derived columns in DuckDB can create new business metrics, and explain why they are valuable for decision-making.",
+      "rubric": [
+        {
+          "name": "example_metric",
+          "check": "Mentions tax, profit margin, region code, or similar derived fields",
+          "scoring": "0 = missing, 1 = vague/incorrect, 2 = clear relevant example"
+        },
+        {
+          "name": "business_value",
+          "check": "Explains how derived metrics support dashboards, KPIs, or strategic insights",
+          "scoring": "0 = missing, 1 = vague, 2 = clearly explained"
+        }
+      ]
+    }
   ]
+]

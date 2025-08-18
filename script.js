@@ -52,8 +52,15 @@ async function init() {
     // Initialize microphone list
     await populateMicrophoneList();
     
-    // Load questions from JSON file
-    await loadQuestions();
+    // Load questions JSON but don't display them yet
+    await loadQuestions(false);
+    
+    // Hide the questions card initially
+    document.querySelector('#questions-card').style.display = 'none';
+    
+    // Add event listeners to interview type cards
+    attachInterviewCardListeners();
+    
   } catch (error) {
     console.error('Initialization error:', error);
     document.getElementById('questions-container').innerHTML = `
@@ -81,21 +88,42 @@ function populateQuestions(questionsData) {
 }
 
 // Function to load questions from JSON file
-async function loadQuestions() {
+async function loadQuestions(displayQuestions = true, interviewIndex = null) {
   try {
     const response = await fetch('ques.json');
     if (!response.ok) {
       throw new Error('Failed to load questions');
     }
     
-    loadedQuestions = await response.json();
+    const allQuestions = await response.json();
     
-    // Populate the JSON editor with the loaded questions
+    // Determine which question set to use based on interviewIndex
+    if (interviewIndex === null) {
+      // If no specific index is requested, use the first set
+      loadedQuestions = allQuestions[0];
+    } else {
+      // Otherwise, use the specific question set by index
+      if (allQuestions[interviewIndex]) {
+        loadedQuestions = allQuestions[interviewIndex];
+      } else {
+        throw new Error(`Question set at index ${interviewIndex} not found`);
+      }
+    }
+    
+    // Populate the JSON editor with the current questions
     const jsonEditor = document.getElementById('jsonEditor');
     jsonEditor.value = JSON.stringify(loadedQuestions, null, 2);
     
-    // Populate questions UI
-    populateQuestions(loadedQuestions);
+    // Only populate questions UI if displayQuestions is true
+    if (displayQuestions) {
+      populateQuestions(loadedQuestions);
+      
+      // Show the questions card
+      document.querySelector('#questions-card').style.display = 'block';
+      
+      // Scroll to questions
+      document.querySelector('#questions-card').scrollIntoView({ behavior: 'smooth' });
+    }
     
   } catch (error) {
     console.error('Error loading questions:', error);
@@ -208,6 +236,56 @@ refreshMicsButton.addEventListener('click', populateMicrophoneList);
 // Add event listener for evaluate button
 evaluateBtn.addEventListener('click', evaluateAnswers);
 
+// Function to attach event listeners to interview type cards
+function attachInterviewCardListeners() {
+  const interviewCards = document.querySelectorAll('.interview-card');
+  
+  interviewCards.forEach(card => {
+    card.addEventListener('click', function() {
+      // Get the index from the card's data attribute
+      const cardIndex = parseInt(card.dataset.index);
+      
+      // Update status
+      statusElement.textContent = `Loading ${card.querySelector('.card-title').textContent} interview...`;
+      
+      // Load the questions for this interview type using the card index
+      loadQuestions(true, cardIndex);
+      
+      // Highlight the selected card and show the selected indicator
+      interviewCards.forEach(c => {
+        c.classList.remove('border-primary', 'border-success', 'border-info', 'border-3');
+        c.querySelector('.card-selected-indicator').style.display = 'none';
+      });
+      
+      // Add appropriate border color based on card index
+      const borderClass = cardIndex === 0 ? 'border-primary' : 
+                         cardIndex === 1 ? 'border-success' : 'border-info';
+      
+      card.classList.add(borderClass, 'border-3');
+      card.querySelector('.card-selected-indicator').style.display = 'block';
+      
+      // Add hover effect
+      card.style.transform = 'translateY(-5px)';
+      setTimeout(() => {
+        card.style.transform = 'translateY(0)';
+      }, 300);
+    });
+    
+    // Add hover effect
+    card.addEventListener('mouseenter', function() {
+      if (!card.classList.contains('border-3')) {
+        card.style.transform = 'translateY(-3px)';
+      }
+    });
+    
+    card.addEventListener('mouseleave', function() {
+      if (!card.classList.contains('border-3')) {
+        card.style.transform = 'translateY(0)';
+      }
+    });
+  });
+}
+
 // Add event listener for run JSON button
 const runJsonBtn = document.getElementById('runJsonBtn');
 runJsonBtn.addEventListener('click', function() {
@@ -227,6 +305,9 @@ runJsonBtn.addEventListener('click', function() {
     
     // Populate the questions UI
     populateQuestions(questionsData);
+    
+    // Show the questions card if it's hidden
+    document.querySelector('#questions-card').style.display = 'block';
     
     // Show success message
     statusElement.textContent = 'Questions updated successfully';
