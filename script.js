@@ -1,5 +1,5 @@
 import { openaiConfig } from "https://cdn.jsdelivr.net/npm/bootstrap-llm-provider@1.2";
-import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@1";
+import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@2";
 
 const statusElement = document.getElementById('status');
 const transcriptionServiceSelect = document.getElementById('transcriptionService');
@@ -357,7 +357,7 @@ async function evaluateAnswers() {
     resultsContent.innerHTML = '';
     resultsContainer.style.display = 'block';
     
-    // Initialize results table
+    // Initialize results table with streaming content placeholder
     resultsContent.innerHTML = `
       <div class="table-responsive">
         <table class="table table-bordered">
@@ -368,31 +368,27 @@ async function evaluateAnswers() {
               <th>Reason</th>
             </tr>
           </thead>
-          <tbody id="results-tbody"></tbody>
+          <tbody id="results-tbody">
+            <tr>
+              <td colspan="3" class="p-3">
+                <div class="d-flex justify-content-center align-items-center mb-3">
+                  <div class="spinner-border text-primary me-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <span>Evaluating all answers...</span>
+                </div>
+                <div class="streaming-content"></div>
+              </td>
+            </tr>
+          </tbody>
         </table>
       </div>
     `;
-    
-    const resultsTbody = document.getElementById('results-tbody');
     
     // Check if we have questions loaded
     if (!loadedQuestions || loadedQuestions.length === 0) {
       throw new Error('No questions loaded to evaluate');
     }
-    
-    // Show loading indicator in results table
-    resultsTbody.innerHTML = `
-      <tr>
-        <td colspan="3" class="text-center p-4">
-          <div class="d-flex justify-content-center align-items-center">
-            <div class="spinner-border text-primary me-3" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-            <span>Evaluating all answers...</span>
-          </div>
-        </td>
-      </tr>
-    `;
     
     // Collect all questions and answers
     const allQuestionsAndAnswers = [];
@@ -419,110 +415,51 @@ async function evaluateAnswers() {
     const systemPrompt = `You are an expert evaluator for interview answers. 
     You will be given multiple questions, the user's answers, and rubrics with scoring criteria.
     Evaluate each answer according to its rubric items and provide a score and reason.
-    Return your evaluation as a valid JSON array with objects in this format: 
-    [{"name": "criteria_name", "score": score_value, "reason": "explanation"}]
-    The name should include the question number (e.g., "Q1_js_rendering").`;
+    
+    Return your evaluation as HTML table rows with the following columns:
+    1. Name (include the question number and criteria name, e.g., "Q1_js_rendering")
+    2. Score (a number from 0-2)
+    3. Reason (brief explanation for the score)
+    
+    Format your response as valid HTML table rows (<tr>, <td>) with color-coded cells using Bootstrap classes:
+    - For score 2: Add class="table-success" to the score <td> cell
+    - For score 1: Add class="table-warning" to the score <td> cell
+    - For score 0: Add class="table-danger" to the score <td> cell
+    
+    At the end, include a summary row with the total score, maximum possible score, and percentage.
+    Make the summary row bold by using <strong> tags or class="fw-bold".
+    Color the summary score cell based on the percentage:
+    - If percentage >= 70%: class="table-success"
+    - If percentage between 40-70%: class="table-warning"
+    - If percentage < 40%: class="table-danger"
+    
+    ONLY return <tr> and <td> elements. DO NOT include the <table>, <thead>, or <tbody> tags.`;
     
     const userMessage = `Questions and Answers:\n\n${allQuestionsAndAnswers.map(qa => 
       `Question ${qa.questionId}: ${qa.question}\n` +
       `Answer: ${qa.answer}\n` +
       `Rubric: ${JSON.stringify(qa.rubric)}\n`
-    ).join('\n')}\n\nPlease evaluate all answers according to their rubrics.`;
+    ).join('\n')}\n\nPlease evaluate all answers according to their rubrics and format the results as HTML table rows.`;
     
     try {
-      // Call LLM for evaluation
-      const evaluationResponse = await callLLM(systemPrompt, userMessage);
-      let parsedResults;
+      // Call LLM for evaluation with streaming
+      const resultsTbody = document.getElementById('results-tbody');
       
-      try {
-        // Try to parse the response as JSON
-        parsedResults = JSON.parse(evaluationResponse);
-        
-        // Validate the structure
-        if (!Array.isArray(parsedResults)) {
-          throw new Error('Response is not an array');
-        }
-      } catch (parseError) {
-        console.error('Failed to parse LLM response:', parseError);
-        console.log('Raw response:', evaluationResponse);
-        
-        // Show error in results
-        resultsTbody.innerHTML = `
-          <tr class="table-danger">
-            <td colspan="3" class="text-danger">
-              <p>Failed to parse evaluation results.</p>
-              <pre class="small">${evaluationResponse.substring(0, 500)}...</pre>
-            </td>
-          </tr>
-        `;
-        throw parseError;
-      }
+      // The callLLM function will update the streaming-content div in real-time
+      const htmlTableRows = await callLLM(systemPrompt, userMessage);
       
-      // Clear loading indicator
-      resultsTbody.innerHTML = '';
-      
-      // Display results
-      let totalScore = 0;
-      let maxPossibleScore = 0;
-      
-      parsedResults.forEach(result => {
-        const name = result.name;
-        const score = parseInt(result.score) || 0;
-        const reason = result.reason;
-        
-        // Determine color based on score
-        let rowClass = 'table-warning';
-        if (score === 0) rowClass = 'table-danger';
-        else if (score === 2) rowClass = 'table-success';
-        
-        // Add to total score
-        totalScore += score;
-        maxPossibleScore += 2; // Assuming max score is 2 for each criteria
-        
-        // Create row
-        const row = document.createElement('tr');
-        row.className = rowClass;
-        row.innerHTML = `
-          <td>${name}</td>
-          <td class="text-center">${score}</td>
-          <td>${reason}</td>
-        `;
-        
-        resultsTbody.appendChild(row);
-      });
-      
-      // Add summary row
-      const percentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0;
-      let summaryClass = 'table-warning';
-      if (percentage < 40) summaryClass = 'table-danger';
-      else if (percentage >= 70) summaryClass = 'table-success';
-      
-      // Add a separator row
-      const separatorRow = document.createElement('tr');
-      separatorRow.innerHTML = '<td colspan="3" class="border-0" style="height: 10px;"></td>';
-      resultsTbody.appendChild(separatorRow);
-      
-      // Add summary row
-      const summaryRow = document.createElement('tr');
-      summaryRow.className = `${summaryClass} fw-bold`;
-      summaryRow.innerHTML = `
-        <td>Overall Score</td>
-        <td class="text-center">${totalScore}/${maxPossibleScore}</td>
-        <td>${percentage}%</td>
-      `;
-      resultsTbody.appendChild(summaryRow);
+      // Replace the loading indicator with the generated HTML table rows
+      resultsTbody.innerHTML = htmlTableRows;
       
     } catch (error) {
       console.error('Error during evaluation:', error);
       
-      if (resultsTbody.querySelector('.spinner-border')) {
-        // If loading indicator is still there, replace it with error
-        resultsTbody.innerHTML = `
-          <tr class="table-danger">
-            <td colspan="3" class="text-danger">Error: ${error.message}</td>
-          </tr>
-        `;
-      }
+      const resultsTbody = document.getElementById('results-tbody');
+      resultsTbody.innerHTML = `
+        <tr class="table-danger">
+          <td colspan="3" class="text-danger">Error: ${error.message}</td>
+        </tr>
+      `;
     }
     
     // All evaluations complete
@@ -627,28 +564,56 @@ async function transcribeWithOpenAI(audioBlob) {
 }
 
 async function callLLM(systemPrompt, userMessage) {
-  try {
-    const response = await fetch("https://llmfoundry.straive.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}:viva`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+  return new Promise(async (resolve, reject) => {
+    try {
+      const body = {
         model: "gpt-5-mini",
+        stream: true,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
-      }),
-    });
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error.message || "API error occurred");
+      };
+      
+      let fullContent = "";
+      
+      // Get the streaming content container
+      const resultsTbody = document.getElementById('results-tbody');
+      const streamingContainer = resultsTbody.querySelector('.streaming-content');
+      
+      // Start with table structure
+      if (streamingContainer) {
+        streamingContainer.innerHTML = '<table class="table table-bordered mb-0"><tbody id="streaming-tbody"></tbody></table>';
+      }
+      
+      for await (const { content, error } of asyncLLM(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}:viva`
+        },
+        body: JSON.stringify(body),
+      })) {
+        if (error) {
+          reject(new Error(`LLM API error: ${error}`));
+          return;
+        }
+        
+        if (content) {
+          fullContent = content;
+          
+          // Update the streaming tbody in real-time
+          const streamingTbody = document.getElementById('streaming-tbody');
+          if (streamingTbody) {
+            streamingTbody.innerHTML = fullContent;
+          }
+        }
+      }
+      
+      resolve(fullContent || "No response received");
+    } catch (error) {
+      console.error("LLM API error:", error);
+      reject(new Error(`API call failed: ${error.message}`));
     }
-    return data.choices?.[0]?.message?.content || "No response received";
-  } catch (error) {
-    console.error(error);
-    throw new Error(`API call failed: ${error.message}`);
-  }
+  });
 }
