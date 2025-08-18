@@ -39,13 +39,26 @@
                     <h1 class="mb-3">VoiceViva</h1>
                     <p class="lead mb-3">Your AI-powered interview companion that turns speech into perfect responses</p>
                     <div class="row justify-content-center mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-6 mb-2">
                             <div class="input-group">
                                 <label class="input-group-text" for="transcriptionService">Transcription Service</label>
                                 <select class="form-select" id="transcriptionService">
                                     <option value="gemini" selected>Gemini</option>
                                     <option value="openai">OpenAI </option>
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row justify-content-center mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <label class="input-group-text" for="microphoneSelect">Microphone</label>
+                                <select class="form-select" id="microphoneSelect">
+                                    <!-- Microphone options will be populated dynamically -->
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary" id="refreshMics" title="Refresh microphone list">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
                             </div>
                         </div>
                     </div>

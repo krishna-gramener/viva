@@ -3,6 +3,8 @@ import { openaiConfig } from "https://cdn.jsdelivr.net/npm/bootstrap-llm-provide
 const statusElement = document.getElementById('status');
 const micButtons = document.querySelectorAll('.mic-btn');
 const transcriptionServiceSelect = document.getElementById('transcriptionService');
+const microphoneSelect = document.getElementById('microphoneSelect');
+const refreshMicsButton = document.getElementById('refreshMics');
 
 const { baseUrl, apiKey } = await openaiConfig({
   baseUrls: [
@@ -41,12 +43,83 @@ async function init() {
     const response = await fetch("https://llmfoundry.straive.com/token", { credentials: "include" });
     const data = await response.json();
     token = data.token;
+    
+    // Initialize microphone list
+    await populateMicrophoneList();
   } catch (error) {
     console.error('Token initialization error:', error);
   }
 }
 
+// Function to get and populate available microphones
+async function populateMicrophoneList() {
+  try {
+    // Clear all existing options
+    while (microphoneSelect.options.length > 0) {
+      microphoneSelect.remove(0);
+    }
+    
+    // Check if media devices are supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      statusElement.textContent = 'Media devices not supported by your browser';
+      // Add default option if media devices aren't supported
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.text = 'Default microphone';
+      defaultOption.selected = true;
+      microphoneSelect.add(defaultOption);
+      return;
+    }
+    
+    // Get all media devices
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    
+    // Filter for audio input devices (microphones)
+    const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
+    
+    // Debug info removed, keeping console logs for debugging
+    
+    if (audioInputDevices.length === 0) {
+      // No microphones found, add default option
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.text = 'Default microphone';
+      defaultOption.selected = true;
+      microphoneSelect.add(defaultOption);
+      
+      const noMicsOption = document.createElement('option');
+      noMicsOption.text = 'No microphones found';
+      noMicsOption.disabled = true;
+      microphoneSelect.add(noMicsOption);
+    } else {
+      // Add each microphone to the select dropdown
+      let firstOption = true;
+      audioInputDevices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `Microphone ${microphoneSelect.options.length + 1}`;
+        if (firstOption) {
+          option.selected = true;
+          firstOption = false;
+        }
+        microphoneSelect.add(option);
+      });
+    }
+    
+    statusElement.textContent = 'Microphone list updated';
+    setTimeout(() => {
+      statusElement.textContent = 'Ready to record';
+    }, 2000);
+  } catch (error) {
+    console.error('Error getting audio devices:', error);
+    statusElement.textContent = 'Error getting microphone list';
+  }
+}
+
 init();
+
+// Add event listener for refresh microphones button
+refreshMicsButton.addEventListener('click', populateMicrophoneList);
 
 // Add event listeners to all mic buttons
 micButtons.forEach(button => {
@@ -78,8 +151,18 @@ micButtons.forEach(button => {
     }
     
     try {
-      // Start recording
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Start recording with selected microphone if available
+      const audioConstraints = { audio: {} };
+      
+      // If a specific microphone is selected, use it
+      const selectedMicId = microphoneSelect.value;
+      if (selectedMicId) {
+        audioConstraints.audio = {
+          deviceId: { exact: selectedMicId }
+        };
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
       mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
       audioChunks = [];
       activeQuestionId = questionId;
