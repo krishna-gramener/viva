@@ -132,6 +132,34 @@
                         </div>
                     </div>
                     
+                    <!-- GitHub Repository Input Section -->
+                    <div class="card mt-3 mb-3">
+                        <div class="card-header">
+                            <button class="btn btn-link text-decoration-none p-0" type="button" data-bs-toggle="collapse" data-bs-target="#githubRepoCollapse" aria-expanded="false" aria-controls="githubRepoCollapse">
+                                <i class="bi bi-github me-2"></i> Use GitHub Repository
+                            </button>
+                        </div>
+                        <div id="githubRepoCollapse" class="collapse">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="githubRepoUrl" class="form-label">GitHub Repository URL</label>
+                                    <input type="text" class="form-control" id="githubRepoUrl" placeholder="https://github.com/username/repository">
+                                    <div class="form-text">Enter the full URL to the GitHub repository you want to analyze.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="githubToken" class="form-label">GitHub Personal Access Token</label>
+                                    <input type="password" class="form-control" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                                    <div class="form-text">Your token will be used only for this session and never stored.</div>
+                                </div>
+
+                                <button type="button" class="btn btn-primary" id="fetchRepoBtn">
+                                    <i class="bi bi-download me-2"></i> Fetch Repository & Generate Questions
+                                </button>
+                                <div id="repo-status" class="mt-2 text-muted fst-italic"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Collapsible JSON Editor -->
                     <div class="card mt-3 mb-3">
                         <div class="card-header">

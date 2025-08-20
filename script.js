@@ -1,6 +1,7 @@
 import { openaiConfig } from "https://cdn.jsdelivr.net/npm/bootstrap-llm-provider@1.2";
 import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@2";
 
+
 const statusElement = document.getElementById('status');
 const transcriptionServiceSelect = document.getElementById('transcriptionService');
 const microphoneSelect = document.getElementById('microphoneSelect');
@@ -10,6 +11,8 @@ const evaluateBtn = document.getElementById('evaluateBtn');
 const evaluationStatus = document.getElementById('evaluation-status');
 const resultsContainer = document.getElementById('results-container');
 const resultsContent = document.getElementById('results-content');
+const repoStatusElement = document.getElementById('repo-status');
+const fetchRepoBtn = document.getElementById('fetchRepoBtn');
 
 // Store loaded questions for later use in evaluation
 let loadedQuestions = [];
@@ -60,6 +63,9 @@ async function init() {
     
     // Add event listeners to interview type cards
     attachInterviewCardListeners();
+    
+    // Add event listener for GitHub repository fetch button
+    attachGitHubRepoListener();
     
   } catch (error) {
     console.error('Initialization error:', error);
@@ -286,40 +292,30 @@ function attachInterviewCardListeners() {
   });
 }
 
-// Add event listener for run JSON button
 const runJsonBtn = document.getElementById('runJsonBtn');
 runJsonBtn.addEventListener('click', function() {
   try {
     const jsonEditor = document.getElementById('jsonEditor');
-    const jsonContent = jsonEditor.value.trim();
+    const jsonData = JSON.parse(jsonEditor.value);
     
-    if (!jsonContent) {
-      throw new Error('JSON content is empty');
-    }
-    
-    // Parse the JSON content
-    const questionsData = JSON.parse(jsonContent);
-    
-    // Update the loaded questions
-    loadedQuestions = questionsData;
+    // Update the loaded questions with the new JSON data
+    loadedQuestions = jsonData;
     
     // Populate the questions UI
-    populateQuestions(questionsData);
+    populateQuestions(loadedQuestions);
     
-    // Show the questions card if it's hidden
+    // Show the questions card
     document.querySelector('#questions-card').style.display = 'block';
     
-    // Show success message
-    statusElement.textContent = 'Questions updated successfully';
-    setTimeout(() => {
-      statusElement.textContent = 'Ready to record';
-    }, 2000);
+    // Update status
+    statusElement.textContent = 'Questions updated from JSON';
     
     // Close the collapse
     const bsCollapse = bootstrap.Collapse.getInstance(document.getElementById('jsonEditorCollapse'));
     if (bsCollapse) {
       bsCollapse.hide();
     }
+    
   } catch (error) {
     console.error('Error parsing JSON:', error);
     statusElement.textContent = `Error: ${error.message}`;
@@ -330,6 +326,418 @@ runJsonBtn.addEventListener('click', function() {
     }, 3000);
   }
 });
+
+// Function to attach event listener to GitHub repository fetch button
+function attachGitHubRepoListener() {
+  fetchRepoBtn.addEventListener('click', async function() {
+    const repoUrl = document.getElementById('githubRepoUrl').value.trim();
+    const githubToken = document.getElementById('githubToken').value.trim();
+    
+    if (!repoUrl) {
+      updateRepoStatus('Please enter a GitHub repository URL', 'danger');
+      return;
+    }
+    
+    if (!githubToken) {
+      updateRepoStatus('Please enter a GitHub personal access token', 'danger');
+      return;
+    }
+    
+    try {
+      updateRepoStatus('Parsing repository URL...', 'info');
+      const { owner, repo } = parseGitHubUrl(repoUrl);
+      
+      if (!owner || !repo) {
+        updateRepoStatus('Invalid GitHub URL format. Please use https://github.com/username/repository', 'danger');
+        return;
+      }
+      
+      updateRepoStatus(`Fetching repository content from ${owner}/${repo}...`, 'info');
+      
+      // Fetch repository content
+      const repoContent = await fetchRepoContent(owner, repo, githubToken);
+      
+      updateRepoStatus('Generating questions based on repository content...', 'info');
+      
+      // Generate questions using LLM
+      const questions = await generateQuestionsFromRepo(repoContent, owner, repo);
+      
+      // Update the loaded questions with the new questions
+      loadedQuestions = questions;
+      
+      // Populate the questions UI
+      populateQuestions(loadedQuestions);
+      
+      // Show the questions card
+      document.querySelector('#questions-card').style.display = 'block';
+      
+      // Update the JSON editor with the new questions
+      const jsonEditor = document.getElementById('jsonEditor');
+      if (jsonEditor) {
+        jsonEditor.value = JSON.stringify(questions, null, 2);
+      }
+      
+      // Update status
+      updateRepoStatus('Questions generated successfully!', 'success');
+      
+      // Close the collapse
+      const bsCollapse = bootstrap.Collapse.getInstance(document.getElementById('githubRepoCollapse'));
+      if (bsCollapse) {
+        bsCollapse.hide();
+      }
+      
+    } catch (error) {
+      console.error('Error fetching repository:', error);
+      updateRepoStatus(`Error: ${error.message}`, 'danger');
+    }
+  });
+}
+
+// Function to update repository status with appropriate styling
+function updateRepoStatus(message, type = 'info') {
+  repoStatusElement.textContent = message;
+  
+  // Remove all existing color classes
+  repoStatusElement.classList.remove('text-info', 'text-danger', 'text-success', 'text-warning');
+  
+  // Add appropriate color class
+  switch (type) {
+    case 'danger':
+      repoStatusElement.classList.add('text-danger');
+      break;
+    case 'success':
+      repoStatusElement.classList.add('text-success');
+      break;
+    case 'warning':
+      repoStatusElement.classList.add('text-warning');
+      break;
+    case 'info':
+    default:
+      repoStatusElement.classList.add('text-info');
+  }
+}
+
+// Function to parse GitHub URL and extract owner and repo
+function parseGitHubUrl(url) {
+  try {
+    // Handle different URL formats
+    // https://github.com/username/repository
+    // https://github.com/username/repository.git
+    // git@github.com:username/repository.git
+    
+    let owner, repo;
+    
+    if (url.includes('github.com')) {
+      // Handle HTTPS URLs
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      
+      // Remove empty parts and .git extension
+      const cleanParts = pathParts.filter(part => part);
+      
+      if (cleanParts.length >= 2) {
+        owner = cleanParts[0];
+        repo = cleanParts[1].replace('.git', '');
+      }
+    } else if (url.includes('git@github.com:')) {
+      // Handle SSH URLs
+      const match = url.match(/git@github\.com:([^/]+)\/([^.]+)(\.git)?/);
+      if (match && match.length >= 3) {
+        owner = match[1];
+        repo = match[2];
+      }
+    }
+    
+    return { owner, repo };
+  } catch (error) {
+    console.error('Error parsing GitHub URL:', error);
+    return { owner: null, repo: null };
+  }
+}
+
+// Function to fetch repository content using GitHub API
+async function fetchRepoContent(owner, repo, token) {
+  try {
+    // Fetch the root content
+    const endpoint = `repos/${owner}/${repo}/contents`;
+    const content = await fetchFromGitHub(endpoint, token);
+    
+    // Try to fetch the README as well
+    let readme = null;
+    try {
+      readme = await fetchFromGitHub(`repos/${owner}/${repo}/readme`, token);
+      if (readme && readme.content) {
+        readme.decodedContent = atob(readme.content);
+      }
+    } catch (error) {
+      console.warn('README not found or not accessible');
+    }
+    
+    // Define code file extensions to filter
+    const codeExtensions = [
+      'js', 'py', 'java', 'ts', 'jsx', 'tsx', 'html', 'css', 'go', 'rs',
+      'c', 'cpp', 'h', 'hpp', 'rb', 'php', 'swift', 'kt', 'cs', 'sh', 'json',
+      'yml', 'yaml', 'md', 'sql', 'vue', 'svelte'
+    ];
+    
+    // Function to check if a file has a code extension
+    const hasCodeExtension = (filename) => {
+      const extension = filename.split('.').pop().toLowerCase();
+      return codeExtensions.includes(extension);
+    };
+    
+    // List of directories to exclude
+    const excludeDirs = [
+      '__pycache__', 'node_modules', '.git', '.github', '.vscode', '.idea',
+      'dist', 'build', 'target', 'venv', 'env', '.env', 'bin', 'obj',
+      'out', 'coverage', '.next', '.nuxt', '.cache', 'tmp', 'temp'
+    ];
+    
+    // Recursive function to fetch files from directories
+    async function fetchFilesRecursively(items, currentPath = '', depth = 0) {
+      // Limit recursion depth to avoid excessive API calls
+      if (depth > 2) return [];
+      
+      let results = [];
+      
+      // Process files first
+      const files = items.filter(item => item.type === 'file' && hasCodeExtension(item.name));
+      
+      // Limit files per directory to avoid rate limiting
+      const filesToFetch = files.slice(0, 5);
+      
+      // Fetch content of each file
+      for (const file of filesToFetch) {
+        try {
+          const fileData = await fetchFromGitHub(file.url.replace('https://api.github.com/', ''), token);
+          if (fileData && fileData.content) {
+            results.push({
+              name: file.name,
+              path: currentPath ? `${currentPath}/${file.name}` : file.path,
+              content: atob(fileData.content)
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not fetch content for ${file.name}:`, error);
+        }
+      }
+      
+      // Process directories next (but limit to avoid too many API calls)
+      const dirs = items.filter(item => 
+        item.type === 'dir' && !excludeDirs.includes(item.name)
+      );
+      const dirsToProcess = dirs.slice(0, 3); // Limit to 3 directories per level
+      
+      for (const dir of dirsToProcess) {
+        try {
+          // Fetch directory contents
+          const dirContents = await fetchFromGitHub(dir.url.replace('https://api.github.com/', ''), token);
+          if (Array.isArray(dirContents)) {
+            // Recursively fetch files from this directory
+            const dirPath = currentPath ? `${currentPath}/${dir.name}` : dir.name;
+            const nestedFiles = await fetchFilesRecursively(dirContents, dirPath, depth + 1);
+            results = results.concat(nestedFiles);
+          }
+        } catch (error) {
+          console.warn(`Could not fetch contents of directory ${dir.name}:`, error);
+        }
+      }
+      
+      return results;
+    }
+    
+    // Start the recursive file fetching
+    let fileContents = [];
+    if (Array.isArray(content)) {
+      fileContents = await fetchFilesRecursively(content);
+    } 
+    // If content is a single file, decode its content
+    else if (content && content.content && hasCodeExtension(content.name)) {
+      fileContents.push({
+        name: content.name,
+        path: content.path,
+        content: atob(content.content)
+      });
+    }
+    
+    // Limit total files to 20 to avoid excessive data
+    fileContents = fileContents.slice(0, 20);
+    
+    return {
+      owner,
+      repo,
+      readme,
+      files: fileContents
+    };
+  } catch (error) {
+    console.error('Error fetching repository content:', error);
+    throw new Error(`Failed to fetch repository content: ${error.message}`);
+  }
+}
+
+// Helper function to make GitHub API requests
+async function fetchFromGitHub(endpoint, token) {
+  const url = endpoint.startsWith('http') ? endpoint : `https://api.github.com/${endpoint}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github.v3+json'
+    }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+  }
+  
+  return await response.json();
+}
+
+// Function to call LLM without streaming for JSON responses
+async function callLLMForJSON(systemPrompt, userMessage) {
+  try {
+    const body = {
+      model: "gpt-5-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    };
+    
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}:viva`
+      },
+      body: JSON.stringify(body),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+    }
+    
+    const result = await response.json();
+    const content = result.choices[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('No content in LLM response');
+    }
+    
+    return content;
+  } catch (error) {
+    console.error("LLM API error:", error);
+    throw error;
+  }
+}
+
+// Function to generate questions based on repository content
+async function generateQuestionsFromRepo(repoContent, owner, repo) {
+  try {
+    // Prepare repository summary for the LLM
+    const repoSummary = prepareRepoSummary(repoContent, owner, repo);
+    
+    // Define system prompt for question generation
+    const systemPrompt = `You are an expert technical interviewer. You need to create interview questions based on the GitHub repository content provided. 
+    Create a set of 3-5 technical questions that would be appropriate for interviewing a developer who worked on this codebase.
+    Each question should test understanding of the code, architecture, or technologies used.
+    
+    For each question, also create a rubric with 2-3 criteria to evaluate answers. Each criterion should have:
+    - A name
+    - A check description
+    - A scoring guide (0-2 scale)
+    
+    Format your response as a valid JSON array following this structure:
+    [
+      {
+        "question": "Your technical question here?",
+        "rubric": [
+          {
+            "name": "criterion_name",
+            "check": "What to check for in the answer",
+            "scoring": "0 = missing/incorrect, 1 = partial, 2 = complete and correct"
+          },
+          {...more criteria...}
+        ]
+      },
+      {...more questions...}
+    ]
+    
+    Focus on key technical concepts, patterns, or technologies evident in the code. Make questions challenging but fair.`;
+    
+    // Call LLM to generate questions
+    updateRepoStatus('Calling LLM to generate questions...', 'info');
+    
+    // Use the new callLLMForJSON function
+    const responseContent = await callLLMForJSON(systemPrompt, repoSummary);
+    
+    // Parse the JSON response
+    try {
+      // First, check if the response is wrapped in markdown code blocks
+      let jsonContent = responseContent;
+      
+      // Check for ```json ... ``` pattern
+      const jsonCodeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
+      const match = responseContent.match(jsonCodeBlockRegex);
+      
+      if (match && match[1]) {
+        // Extract the content from within the code block
+        jsonContent = match[1].trim();
+        console.log('Extracted JSON from code block');
+      }
+      
+      // Now parse the JSON
+      const questionsJson = JSON.parse(jsonContent);
+      return questionsJson;
+    } catch (parseError) {
+      console.error('Error parsing LLM response as JSON:', parseError);
+      console.log('Raw LLM response:', responseContent);
+      throw new Error('Failed to parse LLM response as JSON');
+    }
+  } catch (error) {
+    console.error('Error generating questions:', error);
+    throw new Error(`Failed to generate questions: ${error.message}`);
+  }
+}
+
+// Function to prepare repository summary for the LLM
+function prepareRepoSummary(repoContent, owner, repo) {
+  // Create a summary of the repository content for the LLM
+  let summary = `GitHub Repository: ${owner}/${repo}\n`;
+  
+  // Add README content if available
+  if (repoContent.readme && repoContent.readme.decodedContent) {
+    // Truncate README if it's too long
+    const readmeContent = repoContent.readme.decodedContent;
+    const truncatedReadme = readmeContent.length > 1500 ? 
+      readmeContent.substring(0, 1500) + '... (truncated)' : 
+      readmeContent;
+    
+    summary += `\n## README:\n${truncatedReadme}\n`;
+  }
+  
+  // Add file contents
+  summary += `\n## Files:\n`;
+  
+  if (repoContent.files && repoContent.files.length > 0) {
+    repoContent.files.forEach(file => {
+      // Truncate file content if it's too long
+      const truncatedContent = file.content.length > 2000 ? 
+        file.content.substring(0, 2000) + '... (truncated)' : 
+        file.content;
+      
+      summary += `\n### ${file.path}\n\`\`\`\n${truncatedContent}\n\`\`\`\n`;
+    });
+  } else {
+    summary += 'No files found or accessible.';
+  }
+  
+  return summary;
+}
+
+// Note: We're using the existing callLLM function instead of a separate function for question generation
 
 // Function to attach event listeners to mic buttons
 function attachMicButtonListeners() {
@@ -600,7 +1008,7 @@ async function transcribeWithGemini(base64Data) {
         contents: [{
           role: "user",
           parts: [
-            { text: "Transcribe this audio clip accurately" },
+            { text: "Transcribe this audio clip accurately in English" },
             { inline_data: { mime_type: 'audio/webm', data: base64Data } }
           ]
         }]
