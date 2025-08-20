@@ -61,6 +61,11 @@ async function init() {
     // Add event listeners to interview type cards
     attachInterviewCardListeners();
     
+    // Initialize Firebase authentication
+    if (window.authModule && typeof window.authModule.initializeAuth === 'function') {
+      window.authModule.initializeAuth();
+    }
+    
   } catch (error) {
     console.error('Initialization error:', error);
     document.getElementById('questions-container').innerHTML = `
@@ -228,6 +233,7 @@ async function populateMicrophoneList() {
   }
 }
 
+// Initialize the application
 init();
 
 // Add event listener for refresh microphones button
@@ -235,6 +241,46 @@ refreshMicsButton.addEventListener('click', populateMicrophoneList);
 
 // Add event listener for evaluate button
 evaluateBtn.addEventListener('click', evaluateAnswers);
+
+// Function to initialize the application after authentication
+// This function is called by auth.js when a user is authenticated
+window.initializeApp = function() {
+  console.log('Initializing app after authentication');
+  
+  // Add logout button to the header section
+  const headerSection = document.querySelector('.text-center.mb-4');
+  if (!headerSection) {
+    console.error('Header section not found');
+    return;
+  }
+  
+  // Check if logout button already exists
+  if (!document.getElementById('logout-btn')) {
+    // Create logout button container
+    const logoutContainer = document.createElement('div');
+    logoutContainer.className = 'mt-2 mb-3 text-end';
+    
+    // Create logout button
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'logout-btn';
+    logoutBtn.className = 'btn btn-outline-danger';
+    logoutBtn.innerHTML = '<i class="bi bi-box-arrow-right me-2"></i>Logout';
+    
+    // Add event listener to the logout button
+    logoutBtn.addEventListener('click', () => {
+      console.log('Logout button clicked');
+      if (window.authModule && typeof window.authModule.logoutUser === 'function') {
+        window.authModule.logoutUser();
+      }
+    });
+    
+    // Add button to container and container to header
+    logoutContainer.appendChild(logoutBtn);
+    headerSection.insertBefore(logoutContainer, headerSection.firstChild);
+  }
+  
+  console.log('App initialized after authentication');
+}
 
 // Function to attach event listeners to interview type cards
 function attachInterviewCardListeners() {
@@ -425,6 +471,15 @@ function attachMicButtonListeners() {
 });
 }
 
+// Helper function to get current quiz type
+function getCurrentQuizType() {
+  const selectedCard = document.querySelector('.interview-card.border-3');
+  if (selectedCard) {
+    return selectedCard.querySelector('.card-title').textContent;
+  }
+  return "Unknown";
+}
+
 // Function to evaluate answers
 async function evaluateAnswers() {
   try {
@@ -548,6 +603,87 @@ async function evaluateAnswers() {
     evaluationStatus.textContent = 'Evaluation complete!';
     evaluationStatus.classList.remove('text-primary', 'text-danger');
     evaluationStatus.classList.add('text-success');
+    
+    // Parse the results from the table
+    const resultRows = document.querySelectorAll('#results-tbody tr');
+    const parsedResults = [];
+    
+    resultRows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 3) {
+        const nameCell = cells[0].textContent;
+        // Skip the summary row
+        if (!nameCell.includes('Summary')) {
+          const scoreCell = cells[1].textContent;
+          const reasonCell = cells[2].textContent;
+          
+          // Extract question from name (format is usually Q1_criteria_name)
+          const questionMatch = nameCell.match(/Q(\d+)_/);
+          const questionNum = questionMatch ? questionMatch[1] : '1';
+          const question = loadedQuestions[parseInt(questionNum) - 1]?.question || '';
+          
+          parsedResults.push({
+            question: question,
+            criteria: nameCell,
+            score: parseInt(scoreCell) || 0,
+            reason: reasonCell
+          });
+        }
+      }
+    });
+    
+    // Collect user answers
+    const userAnswers = {};
+    for (let i = 0; i < loadedQuestions.length; i++) {
+      const questionId = i + 1;
+      const transcriptElement = document.getElementById(`transcript-${questionId}`);
+      const answer = transcriptElement ? transcriptElement.textContent.trim() : '';
+      userAnswers[questionId] = answer;
+    }
+    
+    // Store the evaluation data for saving
+    window.currentEvaluationData = {
+      quizType: getCurrentQuizType(),
+      questions: loadedQuestions,
+      answers: userAnswers,
+      evaluationResults: parsedResults
+    };
+    
+    // Remove existing save button if any
+    const existingSaveBtn = document.getElementById('save-results-btn');
+    if (existingSaveBtn) {
+      existingSaveBtn.remove();
+    }
+    
+    // Create and add save button
+    const saveButton = document.createElement('button');
+    saveButton.id = 'save-results-btn';
+    saveButton.className = 'btn btn-success mt-3';
+    saveButton.innerHTML = '<i class="bi bi-save"></i> Save Results';
+    resultsContent.insertAdjacentElement('afterend', saveButton);
+    
+    // Add event listener for save button
+    saveButton.addEventListener('click', async () => {
+      saveButton.disabled = true;
+      saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+      
+      try {
+        if (window.authModule && typeof window.authModule.saveQuizResults === 'function') {
+          const data = window.currentEvaluationData;
+          await window.authModule.saveQuizResults(data.quizType, data.questions, data.answers, data.evaluationResults);
+          saveButton.innerHTML = '<i class="bi bi-check-circle"></i> Saved';
+          saveButton.classList.replace('btn-success', 'btn-outline-success');
+        } else {
+          console.error('Auth module not available for saving results');
+          saveButton.innerHTML = '<i class="bi bi-x-circle"></i> Error';
+          saveButton.classList.replace('btn-success', 'btn-danger');
+        }
+      } catch (error) {
+        console.error('Error saving results:', error);
+        saveButton.innerHTML = '<i class="bi bi-x-circle"></i> Error';
+        saveButton.classList.replace('btn-success', 'btn-danger');
+      }
+    });
     
     // Scroll to results
     resultsContainer.scrollIntoView({ behavior: 'smooth' });
