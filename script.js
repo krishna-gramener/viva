@@ -21,13 +21,12 @@ const evaluationSystemPromptElement = document.getElementById('evaluationSystemP
 let loadedQuestions = [];
 
 const { baseUrl, apiKey} = await openaiConfig({
-  defaultBaseUrls: ["https://api.openai.com/v1", "https://openrouter.com/api/v1","https://llmfoundry.straive.com/openai/v1"]
+  defaultBaseUrls: ["https://aipipe.org/openai/v1","https://api.openai.com/v1", "https://openrouter.com/api/v1","https://llmfoundry.straive.com/openai/v1"]
 });
 
 let mediaRecorder;
 let audioChunks = [];
 let audioURL = null;
-let token = '';
 let activeQuestionId = null;
 
 // Create audio player for a specific question
@@ -50,10 +49,6 @@ function createAudioPlayer(questionId) {
 }
 async function init() {
   try {
-    // Get token for API access
-    const response = await fetch("https://llmfoundry.straive.com/token", { credentials: "include" });
-    const data = await response.json();
-    token = data.token;
     
     // Initialize microphone list
     await populateMicrophoneList();
@@ -612,7 +607,7 @@ async function callLLMForJSON(systemPrompt, userMessage) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}:viva`
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify(body),
     });
@@ -958,7 +953,7 @@ async function transcribeWithGemini(base64Data) {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}:viva`
+        'Authorization': `Bearer ${apiKey}`
       },
       credentials: "include",
       body: JSON.stringify({
@@ -993,7 +988,7 @@ async function transcribeWithOpenAI(audioBlob) {
     {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}:viva`
+        'Authorization': `Bearer ${apiKey}`
       },
       credentials: "include",
       body: formData
@@ -1036,7 +1031,7 @@ async function callLLM(systemPrompt, userMessage) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}:viva`
+          Authorization: `Bearer ${apiKey}`
         },
         body: JSON.stringify(body),
       })) {
