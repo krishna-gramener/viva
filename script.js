@@ -13,6 +13,9 @@ const resultsContainer = document.getElementById('results-container');
 const resultsContent = document.getElementById('results-content');
 const repoStatusElement = document.getElementById('repo-status');
 const fetchRepoBtn = document.getElementById('fetchRepoBtn');
+const questionGenSystemPromptElement = document.getElementById('questionGenSystemPrompt');
+const evaluationSystemPromptElement = document.getElementById('evaluationSystemPrompt');
+
 
 // Store loaded questions for later use in evaluation
 let loadedQuestions = [];
@@ -639,33 +642,8 @@ async function generateQuestionsFromRepo(repoContent, owner, repo) {
     // Prepare repository summary for the LLM
     const repoSummary = prepareRepoSummary(repoContent, owner, repo);
     
-    // Define system prompt for question generation
-    const systemPrompt = `You are an expert technical interviewer. You need to create interview questions based on the GitHub repository content provided. 
-    Create a set of 3-5 technical questions that would be appropriate for interviewing a developer who worked on this codebase.
-    Each question should test understanding of the code, architecture, or technologies used.
-    
-    For each question, also create a rubric with 2-3 criteria to evaluate answers. Each criterion should have:
-    - A name
-    - A check description
-    - A scoring guide (0-2 scale)
-    
-    Format your response as a valid JSON array following this structure:
-    [
-      {
-        "question": "Your technical question here?",
-        "rubric": [
-          {
-            "name": "criterion_name",
-            "check": "What to check for in the answer",
-            "scoring": "0 = missing/incorrect, 1 = partial, 2 = complete and correct"
-          },
-          {...more criteria...}
-        ]
-      },
-      {...more questions...}
-    ]
-    
-    Focus on key technical concepts, patterns, or technologies evident in the code. Make questions challenging but fair.`;
+    // Get the system prompt from the HTML textarea
+    const systemPrompt = questionGenSystemPromptElement.value;
     
     // Call LLM to generate questions
     updateRepoStatus('Calling LLM to generate questions...', 'info');
@@ -900,29 +878,8 @@ async function evaluateAnswers() {
       });
     }
     
-    // Prepare the prompt for LLM with all questions
-    const systemPrompt = `You are an expert evaluator for interview answers. 
-    You will be given multiple questions, the user's answers, and rubrics with scoring criteria.
-    Evaluate each answer according to its rubric items and provide a score and reason.
-    
-    Return your evaluation as HTML table rows with the following columns:
-    1. Name (include the question number and criteria name, e.g., "Q1_js_rendering")
-    2. Score (a number from 0-2)
-    3. Reason (brief explanation for the score)
-    
-    Format your response as valid HTML table rows (<tr>, <td>) with color-coded cells using Bootstrap classes:
-    - For score 2: Add class="table-success" to the score <td> cell
-    - For score 1: Add class="table-warning" to the score <td> cell
-    - For score 0: Add class="table-danger" to the score <td> cell
-    
-    At the end, include a summary row with the total score, maximum possible score, and percentage.
-    Make the summary row bold by using <strong> tags or class="fw-bold".
-    Color the summary score cell based on the percentage:
-    - If percentage >= 70%: class="table-success"
-    - If percentage between 40-70%: class="table-warning"
-    - If percentage < 40%: class="table-danger"
-    
-    ONLY return <tr> and <td> elements. DO NOT include the <table>, <thead>, or <tbody> tags.`;
+    // Get the evaluation system prompt from the HTML textarea
+    const systemPrompt = evaluationSystemPromptElement.value;
     
     const userMessage = `Questions and Answers:\n\n${allQuestionsAndAnswers.map(qa => 
       `Question ${qa.questionId}: ${qa.question}\n` +

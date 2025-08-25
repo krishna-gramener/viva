@@ -1,77 +1,45 @@
-# Audio Recorder & Gemini Transcription Web App
+# VoiceViva
 
-This minimalist web application allows users to record audio from their microphone and transcribe it using Google's Gemini API.
+VoiceViva is an AI-powered technical interview application that records audio responses, transcribes them, and evaluates them against rubrics using LLM technology.
 
-## Features
+## Key Features
 
-- Audio recording from the user's microphone
-- Audio playback of recorded content
-- Direct integration with Gemini API for audio transcription
-- Base64 inline data approach for efficient audio processing
-- Simple, clean user interface with Bootstrap styling
+- **Multiple Interview Types**: Choose from predefined interview types or generate custom questions
+- **Audio Recording & Transcription**: Record responses with automatic transcription via Gemini or OpenAI APIs
+- **LLM Evaluation**: Evaluate responses against rubrics with detailed feedback
+- **GitHub Integration**: Generate interview questions based on repository code
+- **Customizable System Prompts**: Edit the prompts used for question generation and evaluation
+- **JSON Editor**: Create or modify interview questions and rubrics
 
-## Project Structure
+## Quick Start
 
-- `index.html` - HTML structure with Bootstrap styling
-- `script.js` - JavaScript code for audio recording and API integration
-
-## How It Works
-
-### Audio Recording
-
-The application uses the MediaRecorder API to record audio in WebM format with Opus codec. When recording stops, the audio is automatically processed for transcription and made available for playback.
-
-### Gemini API Integration
-
-The application uses a streamlined process to transcribe audio:
-1. Converts the audio blob to base64 data using the `blobToBase64()` helper function
-2. Sends the base64 data directly to Gemini's generateContent endpoint as inline data
-3. Processes and displays the transcription result
-
-### Code Structure
-
-The code is organized into modular functions:
-- Main event listener for the record button
-- `createAudioPlayer()` - Creates the audio player element
-- `blobToBase64()` - Converts audio blob to base64 string
-- `transcribeAudio()` - Handles API communication with Gemini
-- `init()` - Initializes the application
-
-## Setup Instructions
-
-1. Clone this repository
-2. Open `index.html` in a web browser
+1. Open `index.html` in a modern web browser
+2. Select an interview type or generate questions from a GitHub repository
 3. Grant microphone permissions when prompted
-4. Click the "Record" button to start recording
-5. Click the "Stop" button to stop recording and process the audio
-6. Listen to your recording and view the transcription
+4. Record your answers to each question
+5. Submit for evaluation
 
-## API Reference
+## Technical Overview
 
-The application uses the Gemini API with the latest Gemini 2.5 Flash model for high-quality transcription:
+### Components
 
-```
-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
-```
+- `index.html` - UI with Bootstrap styling
+- `script.js` - Core application logic
+- `ques.json` - Predefined interview questions and rubrics
 
-## Implementation Details
+### Technologies Used
 
-- Uses inline base64 data approach instead of file uploads for better reliability
-- Implements proper error handling and status updates
-- Provides audio playback functionality for user convenience
-- Uses proper CORS handling for API communication
-- Modular code structure with helper functions for maintainability
+- **Frontend**: HTML5, CSS3, JavaScript, Bootstrap 5
+- **APIs**: Gemini API (transcription), OpenAI API (transcription and evaluation)
+- **Browser APIs**: MediaRecorder, Fetch, FileReader, Promise
 
-## Security Considerations
+### System Prompts
 
-- Authentication is handled via API keys
-- For production use, API keys should be secured on a backend server
+The application uses customizable system prompts for:
+1. **Question Generation**: Creates technical questions based on GitHub repository content
+2. **Answer Evaluation**: Evaluates responses against question-specific rubrics
 
-## Browser Compatibility
+### Security Notes
 
-This application works in modern browsers that support:
-- MediaRecorder API
-- Fetch API
-- FileReader API
-- Promise API
-- Audio playback
+- API keys should be secured on a backend server for production use
+- GitHub personal access tokens are used only for the current session and not stored
